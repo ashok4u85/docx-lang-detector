@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DOCX Language Detector</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #f5f4f0;
+    color: #1a1a1a;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 3rem 1rem;
+  }
+
+  .header {
+    text-align: center;
+    margin-bottom: 2.5rem;
+  }
+
+  .logo-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 1rem;
+  }
+
+  .logo-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+  }
+
+  header h1 {
+    font-size: 1.6rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: #1a1a1a;
+    margin-bottom: 6px;
+  }
+
+  header p {
+    font-size: 0.9rem;
+    color: #666;
+  }
+
+  .card {
+    background: #fff;
+    border-radius: 14px;
+    border: 1px solid #e8e6e0;
+    padding: 2rem;
+    width: 100%;
+    max-width: 680px;
+  }
+
+  .drop-zone {
+    border: 1.5px dashed #ccc;
+    border-radius: 10px;
+    padding: 2.5rem 1.5rem;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    background: #fafaf8;
+    position: relative;
+  }
+
+  .drop-zone:hover, .drop-zone.over {
+    border-color: #3E016F;
+    background: #f5f0ff;
+  }
+
+  .drop-zone input {
+    position: absolute; inset: 0; opacity: 0;
+    cursor: pointer; width: 100%; height: 100%;
+  }
+
+  .upload-icon {
+    font-size: 2.2rem;
+    margin-bottom: 10px;
+    display: block;
+    color: #999;
+  }
+
+  .drop-zone h3 {
+    font-size: 1rem;
+    font-weight: 500;
+    margin-bottom: 5px;
+    color: #1a1a1a;
+  }
+
+  .drop-zone p {
+    font-size: 0.82rem;
+    color: #888;
+  }
+
+  .status {
+    display: none;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    background: #f5f4f0;
+    border: 1px solid #e8e6e0;
+    font-size: 0.85rem;
+    margin-top: 1rem;
+  }
+
+  .status.show { display: flex; }
+
+  .spinner {
+    width: 16px; height: 16px;
+    border: 2px solid #e0ddd8;
+    border-top-color: #3E016F;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    flex-shrink: 0;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .progress-wrap {
+    display: none;
+    background: #f5f4f0;
+    border-radius: 8px;
+    padding: 14px;
+    margin-top: 1rem;
+  }
+
+  .progress-wrap.show { display: block; }
+
+  .progress-bar-bg {
+    height: 5px;
+    background: #e0ddd8;
+    border-radius: 3px;
+    overflow: hidden;
+    margin: 8px 0 6px;
+  }
+
+  .progress-bar-fill {
+    height: 100%;
+    background: #3E016F;
+    border-radius: 3px;
+    transition: width 0.4s;
+  }
+
+  .progress-label { font-size: 0.8rem; color: #888; }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin: 1.25rem 0;
+  }
+
+  .stat {
+    background: #f5f4f0;
+    border-radius: 8px;
+    padding: 12px 14px;
+  }
+
+  .stat-label { font-size: 0.72rem; color: #888; margin-bottom: 4px; }
+  .stat-val { font-size: 1.5rem; font-weight: 600; color: #1a1a1a; }
+  .stat-val.accent { color: #E60054; }
+
+  .section-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #aaa;
+    margin: 1.25rem 0 0.6rem;
+  }
+
+  .lang-pills { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 0.75rem; }
+
+  .badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 99px;
+    font-size: 0.75rem;
+    font-weight: 500;
+  }
+
+  .b-de { background: #EEEDFE; color: #3C3489; }
+  .b-fr { background: #E6F1FB; color: #0C447C; }
+  .b-es { background: #FAEEDA; color: #633806; }
+  .b-it { background: #FAECE7; color: #712B13; }
+  .b-xx { background: #F1EFE8; color: #444441; }
+
+  .findings-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+    table-layout: fixed;
+  }
+
+  .findings-table th {
+    text-align: left;
+    padding: 8px 10px;
+    font-size: 0.72rem;
+    font-weight: 500;
+    color: #888;
+    border-bottom: 1px solid #e8e6e0;
+    background: #fafaf8;
+  }
+
+  .findings-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid #f0ede8;
+    vertical-align: middle;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .findings-table tr:last-child td { border-bottom: none; }
+
+  .bar-wrap { display: flex; align-items: center; gap: 6px; }
+  .bar-bg { height: 4px; border-radius: 2px; background: #e8e6e0; flex: 1; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 2px; background: #3E016F; }
+  .bar-val { font-size: 0.72rem; color: #888; width: 34px; text-align: right; }
+
+  .hl { background: #FFF176; padding: 1px 3px; border-radius: 2px; color: #222; }
+
+  .actions { display: flex; gap: 8px; margin-top: 1.25rem; flex-wrap: wrap; }
+
+  button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid #e0ddd8;
+    background: #fff;
+    color: #1a1a1a;
+    transition: background 0.12s;
+  }
+
+  button:hover { background: #f5f4f0; }
+
+  button.primary {
+    background: #3E016F;
+    color: #fff;
+    border-color: #3E016F;
+  }
+
+  button.primary:hover { background: #2d0150; }
+
+  .empty { font-size: 0.9rem; color: #888; padding: 1rem 0; }
+
+  .file-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: 99px;
+    background: #f5f4f0;
+    border: 1px solid #e8e6e0;
+    font-size: 0.82rem;
+    color: #444;
+    margin-bottom: 0.25rem;
+  }
+
+  footer {
+    margin-top: 2.5rem;
+    font-size: 0.78rem;
+    color: #bbb;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="logo-bar">
+    <div class="logo-dot" style="background:#3E016F"></div>
+    <div class="logo-dot" style="background:#E60054"></div>
+    <div class="logo-dot" style="background:#8353FD"></div>
+  </div>
+  <h1>DOCX Language Detector</h1>
+  <p>Detects non-English text in Word documents and highlights it</p>
+</header>
+
+<div class="card">
+  <div class="drop-zone" id="dz">
+    <input type="file" id="fi" accept=".docx">
+    <span class="upload-icon">&#128196;</span>
+    <h3>Drop your .docx file here</h3>
+    <p>or click to browse &mdash; Word documents only, max 20MB</p>
+  </div>
+
+  <div class="status" id="statusBar">
+    <div class="spinner" id="statusSpinner" style="display:none"></div>
+    <span id="statusIcon" style="display:none"></span>
+    <span id="statusMsg"></span>
+  </div>
+
+  <div class="progress-wrap" id="progWrap">
+    <div class="progress-bar-bg">
+      <div class="progress-bar-fill" id="progFill" style="width:0%"></div>
+    </div>
+    <p class="progress-label" id="progLabel">Starting&hellip;</p>
+  </div>
+
+  <div id="results" style="display:none"></div>
+</div>
+
+<footer>Processing happens on the server &mdash; your file is not stored.</footer>
+
+<script>
+const dz = document.getElementById('dz');
+const fi = document.getElementById('fi');
+const statusBar = document.getElementById('statusBar');
+const statusSpinner = document.getElementById('statusSpinner');
+const statusIcon = document.getElementById('statusIcon');
+const statusMsg = document.getElementById('statusMsg');
+const progWrap = document.getElementById('progWrap');
+const progFill = document.getElementById('progFill');
+const progLabel = document.getElementById('progLabel');
+const results = document.getElementById('results');
+
+let currentFile = null;
+
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('over'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('over'));
+dz.addEventListener('drop', e => {
+  e.preventDefault(); dz.classList.remove('over');
+  const f = e.dataTransfer.files[0];
+  f && f.name.endsWith('.docx') ? process(f) : setStatus('err', 'Please drop a .docx file.');
+});
+fi.addEventListener('change', e => e.target.files[0] && process(e.target.files[0]));
+
+function setStatus(type, msg) {
+  statusBar.classList.add('show');
+  statusSpinner.style.display = type === 'load' ? 'block' : 'none';
+  statusIcon.style.display = type !== 'load' ? 'inline' : 'none';
+  statusIcon.textContent = type === 'ok' ? '✓' : '✗';
+  statusIcon.style.color = type === 'ok' ? '#3E016F' : '#E60054';
+  statusMsg.textContent = msg;
+}
+
+function setProg(pct, label) {
+  progWrap.classList.add('show');
+  progFill.style.width = pct + '%';
+  progLabel.textContent = label;
+}
+
+function badgeClass(lang) {
+  const l = (lang || '').toLowerCase();
+  if (l.includes('german')) return 'b-de';
+  if (l.includes('french')) return 'b-fr';
+  if (l.includes('spanish')) return 'b-es';
+  if (l.includes('italian')) return 'b-it';
+  return 'b-xx';
+}
+
+async function process(file) {
+  currentFile = file;
+  results.style.display = 'none';
+  setStatus('load', `Reading ${file.name}…`);
+  setProg(10, 'Uploading file…');
+
+  const fd = new FormData();
+  fd.append('file', file);
+
+  let data;
+  try {
+    setProg(30, 'Scanning for non-English text…');
+    const r = await fetch('/scan', { method: 'POST', body: fd });
+    setProg(80, 'Processing results…');
+    data = await r.json();
+  } catch(e) {
+    setStatus('err', 'Network error — is the server running?');
+    progWrap.classList.remove('show');
+    return;
+  }
+
+  if (data.error) {
+    setStatus('err', data.error);
+    progWrap.classList.remove('show');
+    return;
+  }
+
+  setProg(100, 'Complete');
+  const f = data.findings || [];
+  setStatus('ok', `Scan complete — ${f.length} non-English instance(s) found in "${file.name}"`);
+  render(f, file.name);
+}
+
+function render(findings, fname) {
+  const langs = {};
+  findings.forEach(f => { langs[f.language] = (langs[f.language] || 0) + 1; });
+  const langList = Object.entries(langs).sort((a, b) => b[1] - a[1]);
+
+  let h = `
+    <div class="section-label">File scanned</div>
+    <div class="file-pill">&#128196; ${fname}</div>
+    <div class="stats-grid">
+      <div class="stat"><div class="stat-label">Non-English found</div><div class="stat-val accent">${findings.length}</div></div>
+      <div class="stat"><div class="stat-label">Languages detected</div><div class="stat-val">${Object.keys(langs).length}</div></div>
+      <div class="stat"><div class="stat-label">Status</div><div class="stat-val" style="font-size:1rem;padding-top:4px">${findings.length === 0 ? '&#10003; Clean' : '&#9888; Review'}</div></div>
+    </div>`;
+
+  if (findings.length === 0) {
+    h += `<p class="empty">No non-English content detected. Document appears to be English only.</p>`;
+  } else {
+    h += `<div class="section-label">Languages detected</div>
+      <div class="lang-pills">`;
+    langList.forEach(([lang, n]) => {
+      h += `<span class="badge ${badgeClass(lang)}">${lang} &times;${n}</span>`;
+    });
+    h += `</div>
+    <div class="section-label">All findings</div>
+    <table class="findings-table">
+      <thead><tr>
+        <th style="width:28px">#</th>
+        <th style="width:110px">Language</th>
+        <th style="width:130px">Confidence</th>
+        <th>Text detected</th>
+      </tr></thead><tbody>`;
+    findings.forEach((f, i) => {
+      const conf = Math.round(f.confidence);
+      const sample = (f.text || '').substring(0, 70) + (f.text && f.text.length > 70 ? '…' : '');
+      h += `<tr>
+        <td style="color:#bbb;font-size:0.72rem">${i + 1}</td>
+        <td><span class="badge ${badgeClass(f.language)}">${f.language}</span></td>
+        <td><div class="bar-wrap"><div class="bar-bg"><div class="bar-fill" style="width:${conf}%"></div></div><span class="bar-val">${conf}%</span></div></td>
+        <td title="${f.text}"><span class="hl">${sample}</span></td>
+      </tr>`;
+    });
+    h += `</tbody></table>`;
+  }
+
+  h += `<div class="actions">
+    <button class="primary" onclick="downloadFile()">&#8681; Download highlighted .docx</button>
+    <button onclick="copyFindings(${JSON.stringify(findings)})">&#128203; Copy findings</button>
+    <button onclick="reset()">&#8635; Scan another</button>
+  </div>`;
+
+  results.innerHTML = h;
+  results.style.display = 'block';
+}
+
+async function downloadFile() {
+  if (!currentFile) return;
+  const fd = new FormData();
+  fd.append('file', currentFile);
+  const r = await fetch('/download', { method: 'POST', body: fd });
+  const blob = await r.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = currentFile.name.replace('.docx', '_LangDetected.docx');
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function copyFindings(findings) {
+  const text = findings.map((f, i) => `${i + 1}. [${f.language} ${f.confidence}%] ${f.text}`).join('\n');
+  navigator.clipboard.writeText(text).then(() => alert('Findings copied to clipboard.'));
+}
+
+function reset() {
+  results.style.display = 'none';
+  statusBar.classList.remove('show');
+  progWrap.classList.remove('show');
+  fi.value = '';
+  currentFile = null;
+}
+</script>
+</body>
+</html>
